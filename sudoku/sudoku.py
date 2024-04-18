@@ -1,8 +1,9 @@
-from pickletools import float8
 from random import shuffle, seed as random_seed, randrange
 import sys
 from typing import Iterable, List, Optional, Tuple, Union, cast
 
+# type alias for the board
+Board = List[List[Union[int, None]]]
 
 class UnsolvableSudoku(Exception):
     pass
@@ -70,7 +71,7 @@ class _SudokuSolver:
         return grid_row1 == grid_row2 and grid_col1 == grid_col2
 
     # Optimized version of above
-    def __get_solution(self, board: List[List[Union[int, None]]], blanks: List[Tuple[int, int]], blank_fillers: List[List[List[bool]]], are_blanks_filled: List[bool]) -> Optional[List[List[int]]]:
+    def __get_solution(self, board: Board, blanks: List[Tuple[int, int]], blank_fillers: List[List[List[bool]]], are_blanks_filled: List[bool]) -> Optional[List[List[int]]]:
         min_filler_count = None
         chosen_blank = None
         for i, blank in enumerate(blanks):
@@ -141,15 +142,20 @@ class _SudokuSolver:
 class Sudoku:
     _empty_cell_value = None
 
-    def __init__(self, width: int = 3, height: Optional[int] = None, board: Optional[Iterable[Iterable[Union[int, None]]]] = None, difficulty: Optional[float] = None, seed: int = randrange(sys.maxsize)):
+    def __init__(self, width: int = 3, height: Optional[int] = None,
+                 board: Optional[Iterable[Iterable[Union[int, None]]]] = None,
+                 difficulty: Optional[float] = None, seed: int = randrange(sys.maxsize)):
         """
         Initializes a Sudoku board
 
         :param width: Integer representing the width of the Sudoku grid. Defaults to 3.
-        :param height: Optional integer representing the height of the Sudoku grid. If not provided, defaults to the value of `width`.
+        :param height: Optional integer representing the height of the Sudoku grid. If not provided, 
+        defaults to the value of `width`.
         :param board: Optional iterable for a the initial state of the Sudoku board.
-        :param difficulty: Optional float representing the difficulty level of the Sudoku puzzle. If provided, sets the difficulty level based on the number of empty cells. Defaults to None.
-        :param seed: Integer representing the seed for the random number generator used to generate the board. Defaults to a random seed within the system's maximum size.
+        :param difficulty: Optional float representing the difficulty level of the Sudoku puzzle. 
+        If provided, sets the difficulty level based on the number of empty cells. Defaults to None.
+        :param seed: Integer representing the seed for the random number generator used to 
+        generate the board. Defaults to a random seed within the system's maximum size.
 
         :raises AssertionError: If the width, height, or size of the board is invalid.
         """
@@ -167,8 +173,9 @@ class Sudoku:
 
         if board:
             blank_count = 0
-            self.board: List[List[Union[int, None]]] = [
+            self.board: Board = [
                 [cell for cell in row] for row in board]
+            # replace anything other than valid integers with an empty cell
             for row in self.board:
                 for i in range(len(row)):
                     if not row[i] in range(1, self.size + 1):
@@ -176,11 +183,12 @@ class Sudoku:
                         blank_count += 1
             if difficulty == None:
                 if self.validate():
-                    self.__difficulty = blank_count / \
-                        (self.size * self.size)
+                    self.__difficulty = blank_count / (self.size * self.size)
                 else:
                     self.__difficulty = -2
         else:
+            # if a board was not passed in, generate a random board
+            # does not actually use difficulty to create the board
             positions = list(range(self.size))
             random_seed(seed)
             shuffle(positions)
@@ -230,15 +238,18 @@ class Sudoku:
                     box_numbers[box][cell - 1] = True
         return True
 
-    @ staticmethod
-    def _copy_board(board: Iterable[Iterable[Union[int, None]]]) -> List[List[Union[int, None]]]:
+    @staticmethod
+    def _copy_board(board: Iterable[Iterable[Union[int, None]]]) -> Board:
         return [[cell for cell in row] for row in board]
 
-    @ staticmethod
+    @staticmethod
     def empty(width: int, height: int):
         size = width * height
-        board = [[Sudoku._empty_cell_value] * size] * size
+        board = [[Sudoku._empty_cell_value] * size for _ in range(size)]
         return Sudoku(width, height, board, 0)
+    
+    def get_empty_cell_count(self) -> int:
+        pass
 
     def difficulty(self, difficulty: float) -> 'Sudoku':
         """
@@ -310,9 +321,9 @@ Difficulty: {}
 {}
         '''.format(self.size, self.size, self.width, self.height, difficulty_str, self.__format_board_ascii())
 
-
 class DiagonalSudoku(Sudoku):
-    def __init__(self, size: int = 3, board: Iterable[Iterable[int | None]] | None = None, difficulty: float | None = None, seed: int = randrange(sys.maxsize)):
+    def __init__(self, size: int = 3, board: Optional[Iterable[Iterable[Union[int, None]]]] = None,
+                 difficulty: Optional[float] = None, seed: int = randrange(sys.maxsize)):
         self.width = size
         self.height = size
         self.size = size * size
@@ -329,7 +340,7 @@ class DiagonalSudoku(Sudoku):
 
         if board:
             blank_count = 0
-            self.board: List[List[Union[int, None]]] = [
+            self.board: Board = [
                 [cell for cell in row] for row in board]
             for row in self.board:
                 for i in range(len(row)):
@@ -553,7 +564,7 @@ class _DiagonalSudokuSolver(_SudokuSolver):
                     valid_fillers[row][col][same_diagonal - 1] = False
         return valid_fillers
     
-    def __get_solution(self, board: List[List[Union[int, None]]], blanks: List[Tuple[int, int]], blank_fillers: List[List[List[bool]]], are_blanks_filled: List[bool]) -> Optional[List[List[int]]]:
+    def __get_solution(self, board: Board, blanks: List[Tuple[int, int]], blank_fillers: List[List[List[bool]]], are_blanks_filled: List[bool]) -> Optional[List[List[int]]]:
         min_filler_count = None
         chosen_blank = None
         for i, blank in enumerate(blanks):
